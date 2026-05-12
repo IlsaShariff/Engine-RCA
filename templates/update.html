@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <div class="page-header">
+    <h1>➕ Add & Update Data</h1>
+    <p>Manually add new tripping events or upload an updated Excel file</p>
+  </div>
+
+  <div class="grid-2">
+    <div class="panel">
+      <h3>✏️ Add New Tripping Event</h3>
+      {% if add_msg %}
+      <div class="alert {{ 'alert-success' if add_ok else 'alert-error' }}">{{ add_msg }}</div>
+      {% endif %}
+      <form method="POST" action="/update/add">
+        <div class="form-group">
+          <label>Engine</label>
+          <select name="engine">
+            {% for e in all_engines %}
+            <option>{{ e }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Date</label>
+          <input type="date" name="date" value="{{ today }}">
+        </div>
+        <div class="form-group">
+          <label>Time (HH:MM)</label>
+          <input type="time" name="time">
+        </div>
+        <div class="form-group">
+          <label>Running Hours (optional)</label>
+          <input type="number" name="running_hours" placeholder="e.g. 12500">
+        </div>
+        <div class="form-group">
+          <label>Tripping Details / Root Cause</label>
+          <textarea name="details" rows="4" placeholder="Describe what happened: alarms fired, cause found, actions taken..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>Action Taken</label>
+          <textarea name="action" rows="2" placeholder="What was done to resolve the issue?"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;">➕ Add Entry to Database</button>
+      </form>
+    </div>
+
+    <div class="panel">
+      <h3>📤 Upload Updated Excel File</h3>
+      {% if upload_msg %}
+      <div class="alert {{ 'alert-success' if upload_ok else 'alert-error' }}">{{ upload_msg }}</div>
+      {% endif %}
+      <p class="text-muted" style="font-size:.85rem;margin-bottom:1.2rem;line-height:1.6;">
+        Upload a new version of your Excel file. The system will replace the current data file and use
+        the new one for all analysis immediately. Keep the same column structure.
+      </p>
+      <form method="POST" action="/update/upload" enctype="multipart/form-data">
+        <div class="upload-area" style="margin-bottom:1rem;">
+          <div style="font-size:2.5rem;margin-bottom:.5rem;">📂</div>
+          <p style="color:var(--muted);">Select your updated Excel file</p>
+          <input type="file" name="file" accept=".xlsx,.xls" style="margin-top:.75rem;width:auto;">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;">📤 Upload & Replace Data</button>
+      </form>
+
+      <div style="margin-top:1.5rem;">
+        <div class="section-title">📋 Required Excel Column Names</div>
+        <table>
+          <tr><th>Column</th><th>Example Value</th></tr>
+          <tr><td>Engine</td><td>G1, G2, G8, N1, Rental Eng., Blackout</td></tr>
+          <tr><td>Date</td><td>2025-01-15</td></tr>
+          <tr><td>Month</td><td>1 to 12</td></tr>
+          <tr><td>Year</td><td>2025</td></tr>
+          <tr><td>Time</td><td>14:30:00</td></tr>
+          <tr><td>Details</td><td>Engine tripped on detonation unit #5…</td></tr>
+          <tr><td>Action Taken</td><td>Replaced spark plug, taken on load</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>📋 Most Recent 10 Entries</h3>
+    <div class="tbl-wrap">
+      <table>
+        <tr><th>#</th><th>Engine</th><th>Date</th><th>Root Cause Category</th><th>Details</th></tr>
+        {% for r in recent %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td><strong class="text-accent">{{ r.engine }}</strong></td>
+          <td>{{ r.date }}</td>
+          <td><span class="badge badge-yellow">{{ r.rca }}</span></td>
+          <td>{{ r.details[:160] }}{% if r.details|length>160 %}…{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

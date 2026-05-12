@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <div class="page-header">
+    <h1>🤖 Smart RCA Assistant</h1>
+    <p>Enter engine details and observed symptoms — system analyzes historical data to predict root causes</p>
+  </div>
+
+  <div class="grid-2">
+    <div class="panel">
+      <h3>🔎 Enter Observed Symptoms</h3>
+      <form method="POST" action="/rca">
+        <div class="form-group">
+          <label>Engine Number</label>
+          <select name="engine">
+            <option value="">— All Engines —</option>
+            {% for e in all_engines %}
+            <option value="{{ e }}" {{ 'selected' if e==sel_engine else '' }}>{{ e }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Observed Alarm / Symptoms</label>
+          <textarea name="symptoms" rows="5" placeholder="e.g. detonation alarm unit 5, spark plug, engine tripped, fuel valve malfunction, temperature high...">{{ sel_symptoms }}</textarea>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;">🔍 Analyze Root Cause</button>
+      </form>
+
+      {% if results %}
+      <div style="margin-top:1.5rem;">
+        <div class="section-title">📋 Top Probable Root Causes</div>
+        {% for r in results %}
+        <div class="rca-match">
+          <div class="rca-rank {{ 'rank-1' if loop.index==1 else ('rank-2' if loop.index==2 else ('rank-3' if loop.index==3 else 'rank-n')) }}">
+            {{ loop.index }}
+          </div>
+          <div class="rca-match-content">
+            <div class="rca-match-title">{{ r.category }}</div>
+            <div class="rca-match-detail">{{ r.reason }}</div>
+            <div class="confidence">Confidence: {{ r.confidence }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if confirm_msg %}
+      <div class="alert alert-success mt-2">{{ confirm_msg }}</div>
+      {% endif %}
+    </div>
+
+    <div class="panel">
+      <h3>📂 Similar Past Cases</h3>
+      {% if similar %}
+        <div class="timeline">
+        {% for c in similar %}
+        <div class="tl-item">
+          <div class="tl-dot"></div>
+          <div class="tl-date">{{ c.date }} — <strong>{{ c.engine }}</strong></div>
+          <div class="tl-title"><span class="badge badge-yellow">{{ c.rca }}</span></div>
+          <div class="tl-body" style="margin-top:.3rem;">{{ c.details[:200] }}{% if c.details|length>200 %}…{% endif %}</div>
+          {% if c.action %}
+          <div class="tl-body mt-1 text-green">✅ {{ c.action[:150] }}{% if c.action|length>150 %}…{% endif %}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+        </div>
+      {% elif sel_symptoms %}
+        <p class="text-muted">No similar cases found. Try different keywords.</p>
+      {% else %}
+        <div class="alert alert-info">Submit symptoms on the left to see matching historical cases here.</div>
+      {% endif %}
+
+      {% if sel_symptoms %}
+      <div style="margin-top:1.5rem;">
+        <div class="section-title">✅ Confirm / Add Root Cause</div>
+        <form method="POST" action="/rca/confirm">
+          <input type="hidden" name="engine" value="{{ sel_engine }}">
+          <input type="hidden" name="symptoms" value="{{ sel_symptoms }}">
+          <div class="form-group">
+            <label>Confirmed Root Cause</label>
+            <input type="text" name="confirmed_rca" placeholder="Enter the confirmed root cause...">
+          </div>
+          <div class="form-group">
+            <label>Action Taken</label>
+            <textarea name="action" rows="2" placeholder="What was done to fix it?"></textarea>
+          </div>
+          <button type="submit" class="btn btn-success">✅ Save Confirmed RCA</button>
+        </form>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>🧠 How the Smart RCA Works</h3>
+    <p style="color:var(--muted);font-size:.88rem;line-height:1.8;">
+      The system uses <strong style="color:var(--text)">keyword matching + frequency analysis</strong> against your actual historical tripping data.<br>
+      When you enter symptoms (e.g. "detonation", "fuel valve", "spark plug"), it:<br>
+      &nbsp; 1. Matches your keywords against 16 root cause categories learned from this plant's history<br>
+      &nbsp; 2. Ranks causes by how often they occurred for the selected engine<br>
+      &nbsp; 3. Retrieves the most similar past incidents for reference<br>
+      &nbsp; 4. Lets you confirm or add a new root cause to the learning database
+    </p>
+  </div>
+</div>
+{% endblock %}

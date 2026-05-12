@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <div class="page-header">
+    <h1>📊 Dashboard Overview</h1>
+    <p>Cumulative engine tripping analysis — all units, all years</p>
+  </div>
+
+  <div class="cards">
+    <div class="card accent">
+      <div class="card-label">Total Trips Logged</div>
+      <div class="card-value">{{ total_trips }}</div>
+      <div class="card-sub">All engines combined</div>
+    </div>
+    <div class="card yellow">
+      <div class="card-label">Years Covered</div>
+      <div class="card-value">{{ years|length }}</div>
+      <div class="card-sub">{{ years|join(', ') }}</div>
+    </div>
+    <div class="card red">
+      <div class="card-label">Most Affected Engine</div>
+      <div class="card-value">{{ top_engine }}</div>
+      <div class="card-sub">{{ top_engine_trips }} incidents</div>
+    </div>
+    <div class="card green">
+      <div class="card-label">Engines Monitored</div>
+      <div class="card-value">{{ engine_count }}</div>
+      <div class="card-sub">Including Blackout events</div>
+    </div>
+    <div class="card purple">
+      <div class="card-label">Top Root Cause</div>
+      <div class="card-value" style="font-size:1rem;margin-top:.3rem;">{{ top_rca }}</div>
+      <div class="card-sub">{{ top_rca_pct }}% of all trips</div>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <div class="tab active" onclick="showTab('tab-yearly',this)">📅 Yearly Summary</div>
+    <div class="tab" onclick="showTab('tab-monthly',this)">📆 Monthly Comparison</div>
+    <div class="tab" onclick="showTab('tab-engines',this)">⚙️ Engine-wise</div>
+    <div class="tab" onclick="showTab('tab-charts',this)">🥧 Charts</div>
+    <div class="tab" onclick="showTab('tab-3d',this)">🔩 3D Models</div>
+  </div>
+
+  <!-- YEARLY -->
+  <div id="tab-yearly" class="tab-content active">
+    <div class="grid-2">
+      <div class="panel">
+        <h3>Total Trips Per Year</h3>
+        <div class="chart-wrap"><canvas id="yearlyChart"></canvas></div>
+      </div>
+      <div class="panel">
+        <h3>Year-on-Year Summary</h3>
+        <table>
+          <tr><th>Year</th><th>Trips</th><th>Engines Affected</th><th>Top Cause</th></tr>
+          {% for row in yearly_table %}
+          <tr>
+            <td><strong>{{ row.year }}</strong></td>
+            <td><span class="badge badge-blue">{{ row.trips }}</span></td>
+            <td>{{ row.engines }}</td>
+            <td><span class="badge badge-yellow">{{ row.top_cause }}</span></td>
+          </tr>
+          {% endfor %}
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- MONTHLY -->
+  <div id="tab-monthly" class="tab-content">
+    <div class="panel">
+      <h3>Monthly Trip Count by Year</h3>
+      <div class="chart-wrap" style="height:320px;"><canvas id="monthlyChart"></canvas></div>
+    </div>
+    <div class="panel mt-2">
+      <h3>Monthly Breakdown Table <span>trips per month per year</span></h3>
+      <div class="scroll-x">
+        <table class="month-table">
+          <tr>
+            <th>Year</th>
+            {% for m in months %}<th>{{ m }}</th>{% endfor %}
+            <th>Total</th>
+          </tr>
+          {% for row in monthly_table %}
+          <tr>
+            <td>{{ row.year }}</td>
+            {% for v in row.counts %}
+            <td class="{{ 'cell-hot' if v>=3 else ('cell-med' if v>=1 else 'cell-zero') }}">{{ v if v > 0 else '—' }}</td>
+            {% endfor %}
+            <td><strong>{{ row.total }}</strong></td>
+          </tr>
+          {% endfor %}
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ENGINES -->
+  <div id="tab-engines" class="tab-content">
+    <div class="panel">
+      <h3>Engine-wise Trip Count</h3>
+      <div class="chart-wrap"><canvas id="engineChart"></canvas></div>
+    </div>
+    <div class="panel mt-2">
+      <h3>Engine Detail Table</h3>
+      <div class="tbl-wrap">
+        <table>
+          <tr><th>Engine</th><th>Type</th><th>Total Trips</th>{% for y in years %}<th>{{ y }}</th>{% endfor %}<th>Top Cause</th></tr>
+          {% for row in engine_table %}
+          <tr>
+            <td><strong class="text-accent">{{ row.engine }}</strong></td>
+            <td>{{ row.type }}</td>
+            <td><span class="badge badge-blue">{{ row.total }}</span></td>
+            {% for v in row.by_year %}<td>{{ v if v > 0 else '—' }}</td>{% endfor %}
+            <td><span class="badge badge-yellow" style="font-size:.7rem;">{{ row.top_cause }}</span></td>
+          </tr>
+          {% endfor %}
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHARTS -->
+  <div id="tab-charts" class="tab-content">
+    <div class="grid-2">
+      <div class="panel">
+        <h3>🥧 Root Cause Distribution</h3>
+        <div class="chart-wrap"><canvas id="rcaPie"></canvas></div>
+      </div>
+      <div class="panel">
+        <h3>🥧 Engine Contribution to Total Trips</h3>
+        <div class="chart-wrap"><canvas id="enginePie"></canvas></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>Root Cause Frequency Breakdown</h3>
+      {% for rca, count in rca_sorted %}
+      <div style="margin-bottom:.75rem;">
+        <div class="flex" style="margin-bottom:.3rem;">
+          <span style="font-size:.85rem;">{{ rca }}</span>
+          <span style="margin-left:auto;font-weight:600;font-size:.85rem;">{{ count }} trips</span>
+        </div>
+        <div class="bar-wrap"><div class="bar-fill" style="width:{{ (count/total_trips*100)|round }}%;"></div></div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div id="tab-3d" class="tab-content">
+    <div style="margin-bottom:1rem;display:flex;gap:1.5rem;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--muted,#8892aa)"><div style="width:10px;height:10px;border-radius:2px;background:#4f8ef7"></div>G3520C — Gas 20-cyl</div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--muted,#8892aa)"><div style="width:10px;height:10px;border-radius:2px;background:#378ADD"></div>G3516C — Diesel 16-cyl</div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--muted,#8892aa)"><div style="width:10px;height:10px;border-radius:2px;background:#22c55e"></div>G3520H — High efficiency</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1px;background:#2e3250;border:1px solid #2e3250;border-radius:12px;overflow:hidden;margin-bottom:1.5rem;">
+      {% set engines_3d = [
+        {"id":"G1","model":"G3520C","serial":"GZN00574","type":"Gas — 20 cyl","color":"#4f8ef7"},
+        {"id":"G2","model":"G3520C","serial":"GZN00573","type":"Gas — 20 cyl","color":"#4f8ef7"},
+        {"id":"G3","model":"G3520C","serial":"GZN00585","type":"Gas — 20 cyl","color":"#4f8ef7"},
+        {"id":"G4","model":"G3520C","serial":"GZN00849","type":"Gas — 20 cyl","color":"#4f8ef7"},
+        {"id":"G5","model":"G3520C","serial":"GZN00850","type":"Gas — 20 cyl","color":"#4f8ef7"},
+        {"id":"G6","model":"G3520C","serial":"GZN00851","type":"Gas — 20 cyl","color":"#4f8ef7"},
+        {"id":"G7","model":"G3520C","serial":"GZN00867","type":"Gas — 20 cyl","color":"#4f8ef7"},
+        {"id":"G8","model":"G3516C","serial":"F6D00109","type":"Diesel — 16 cyl","color":"#378ADD"},
+        {"id":"G9","model":"G3520H","serial":"GFP01349","type":"Gas — High efficiency","color":"#22c55e"}
+      ] %}
+      {% for e in engines_3d %}
+      <div onclick="open3d('{{e.id}}','{{e.model}}','{{e.serial}}','{{e.type}}','{{e.color}}')"
+           style="background:#1a1d27;padding:1.3rem 1.4rem;cursor:pointer;transition:background .18s;position:relative;overflow:hidden;"
+           onmouseover="this.style.background='#222538'" onmouseout="this.style.background='#1a1d27'">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+          <div style="font-size:1.9rem;font-weight:700;color:{{e.color}};line-height:1;">{{e.id}}</div>
+          <div style="width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 6px #22c55e88;margin-top:4px;"></div>
+        </div>
+        <div style="font-size:.7rem;font-weight:700;letter-spacing:1.5px;color:#8892aa;text-transform:uppercase;margin-bottom:3px;">{{e.model}}</div>
+        <div style="font-size:.76rem;color:#8892aa;">Serial: <span style="color:#e2e8f0;font-weight:500;">{{e.serial}}</span></div>
+        <div style="margin-top:10px;font-size:.7rem;color:#8892aa;">{{e.type}}</div>
+      </div>
+      {% endfor %}
+    </div>
+    <p style="font-size:.8rem;color:#8892aa;">Click any engine card to open its interactive 3D model on CAT SIS 2.0. Requires an active CAT SIS 2.0 account.</p>
+  </div>
+</div>
+
+<!-- 3D Modal -->
+<div id="modal-3d" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.78);align-items:center;justify-content:center;" onclick="close3dBg(event)">
+  <div style="background:#1a1d27;border:1px solid #2e3250;border-radius:12px;width:460px;max-width:95vw;overflow:hidden;animation:popIn .2s ease;">
+    <div style="background:#222538;border-bottom:1px solid #2e3250;padding:1rem 1.25rem;display:flex;align-items:center;gap:12px;">
+      <div id="m3-id" style="font-size:1.5rem;font-weight:700;color:#4f8ef7;"></div>
+      <div style="flex:1;">
+        <div id="m3-model" style="font-size:.8rem;font-weight:600;letter-spacing:1px;color:#8892aa;text-transform:uppercase;"></div>
+        <div style="font-size:.76rem;color:#8892aa;margin-top:2px;">Serial: <span id="m3-serial" style="color:#e2e8f0;font-weight:500;"></span></div>
+      </div>
+      <button onclick="close3d()" style="background:none;border:1px solid #2e3250;color:#8892aa;width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:1rem;">×</button>
+    </div>
+    <div style="padding:1.4rem 1.25rem;">
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:1.2rem;">
+        {% for tag in ["Basic Engine","Air Inlet & Exhaust","Cooling System","Electrical","Lubrication","Fuel System","Engine Arrangement"] %}
+        <span style="font-size:.68rem;letter-spacing:.5px;text-transform:uppercase;padding:3px 8px;border-radius:4px;background:#222538;border:1px solid #2e3250;color:#8892aa;">{{tag}}</span>
+        {% endfor %}
+      </div>
+      <a id="m3-link" href="#" target="_blank"
+         style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:.85rem;background:#4f8ef7;color:#fff;border:none;border-radius:8px;font-size:.9rem;font-weight:700;cursor:pointer;text-decoration:none;transition:opacity .15s;"
+         onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+        ➜ Open 3D Model in CAT SIS 2.0
+      </a>
+      <div style="font-size:.74rem;color:#8892aa;text-align:center;margin-top:.8rem;line-height:1.6;">
+        Opens the interactive CAT SIS 2.0 3D viewer for this engine.<br>Requires an active CAT SIS 2.0 account.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function open3d(id,model,serial,type,color){
+  document.getElementById('m3-id').textContent=id;
+  document.getElementById('m3-id').style.color=color;
+  document.getElementById('m3-model').textContent=model;
+  document.getElementById('m3-serial').textContent=serial;
+  document.getElementById('m3-link').href='https://sis2.cat.com/#/detail?serialNumber='+serial+'&tab=3D';
+  document.getElementById('m3-link').style.background=color;
+  document.getElementById('modal-3d').style.display='flex';
+}
+function close3d(){document.getElementById('modal-3d').style.display='none';}
+function close3dBg(e){if(e.target===document.getElementById('modal-3d'))close3d();}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')close3d();});
+</script>
+
+<script>
+const COLORS=['#4f8ef7','#7c3aed','#22c55e','#f59e0b','#ef4444','#06b6d4','#ec4899',
+              '#a78bfa','#34d399','#fbbf24','#f87171','#67e8f9','#f9a8d4','#86efac'];
+
+new Chart(document.getElementById('yearlyChart'),{
+  type:'bar',
+  data:{labels:{{ years|tojson }},datasets:[{label:'Trips',data:{{ yearly_counts|tojson }},
+    backgroundColor:'#4f8ef7',borderRadius:6}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+    scales:{x:{grid:{color:'#2e3250'},ticks:{color:'#8892aa'}},y:{grid:{color:'#2e3250'},ticks:{color:'#8892aa'}}}}
+});
+
+new Chart(document.getElementById('monthlyChart'),{
+  type:'line',
+  data:{labels:{{ months|tojson }},datasets:{{ monthly_datasets|tojson }}},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:'#e2e8f0'}}},
+    scales:{x:{grid:{color:'#2e3250'},ticks:{color:'#8892aa'}},
+            y:{grid:{color:'#2e3250'},ticks:{color:'#8892aa',stepSize:1}}}}
+});
+
+new Chart(document.getElementById('engineChart'),{
+  type:'bar',
+  data:{labels:{{ engine_labels|tojson }},datasets:[{label:'Total Trips',data:{{ engine_values|tojson }},
+    backgroundColor:COLORS,borderRadius:5}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+    scales:{x:{grid:{color:'#2e3250'},ticks:{color:'#e2e8f0'}},y:{grid:{color:'#2e3250'},ticks:{color:'#8892aa'}}}}
+});
+
+new Chart(document.getElementById('rcaPie'),{
+  type:'doughnut',
+  data:{labels:{{ rca_labels|tojson }},
+    datasets:[{data:{{ rca_values|tojson }},backgroundColor:COLORS,borderColor:'#1a1d27',borderWidth:2}]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{position:'right',labels:{color:'#8892aa',font:{size:11},boxWidth:12}}}}
+});
+
+new Chart(document.getElementById('enginePie'),{
+  type:'doughnut',
+  data:{labels:{{ engine_labels|tojson }},
+    datasets:[{data:{{ engine_values|tojson }},backgroundColor:COLORS,borderColor:'#1a1d27',borderWidth:2}]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{position:'right',labels:{color:'#8892aa',font:{size:11},boxWidth:12}}}}
+});
+</script>
+{% endblock %}

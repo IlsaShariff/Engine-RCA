@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Engine Tripping RCA System</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root{--bg:#0f1117;--surface:#1a1d27;--surface2:#222538;--border:#2e3250;
+    --accent:#4f8ef7;--accent2:#7c3aed;--green:#22c55e;--red:#ef4444;
+    --yellow:#f59e0b;--text:#e2e8f0;--muted:#8892aa;--radius:12px;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+  nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 2rem;
+      display:flex;align-items:center;gap:0;position:sticky;top:0;z-index:100;}
+  .logo{font-size:1.1rem;font-weight:700;color:var(--accent);padding:1rem 1.5rem 1rem 0;
+        border-right:1px solid var(--border);margin-right:1rem;letter-spacing:.5px;}
+  .logo span{color:#fff;}
+  nav a{color:var(--muted);text-decoration:none;padding:.9rem 1.1rem;font-size:.9rem;
+        border-bottom:3px solid transparent;transition:all .2s;display:flex;align-items:center;gap:.4rem;}
+  nav a:hover{color:var(--text);}
+  nav a.active{color:var(--accent);border-bottom-color:var(--accent);}
+  .container{max-width:1400px;margin:0 auto;padding:2rem;}
+  .page-header{margin-bottom:2rem;}
+  .page-header h1{font-size:1.8rem;font-weight:700;}
+  .page-header p{color:var(--muted);margin-top:.4rem;}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:2rem;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.4rem;}
+  .card.accent{border-left:4px solid var(--accent);}
+  .card.green{border-left:4px solid var(--green);}
+  .card.yellow{border-left:4px solid var(--yellow);}
+  .card.red{border-left:4px solid var(--red);}
+  .card.purple{border-left:4px solid var(--accent2);}
+  .card-label{font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:.5rem;}
+  .card-value{font-size:2rem;font-weight:700;line-height:1;}
+  .card-sub{font-size:.82rem;color:var(--muted);margin-top:.4rem;}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;}
+  @media(max-width:900px){.grid-2{grid-template-columns:1fr;}}
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;}
+  .panel h3{font-size:1rem;font-weight:600;margin-bottom:1rem;color:var(--text);}
+  .panel h3 span{font-size:.78rem;color:var(--muted);font-weight:400;margin-left:.5rem;}
+  .tbl-wrap{overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;font-size:.85rem;}
+  th{text-align:left;padding:.7rem 1rem;background:var(--surface2);color:var(--muted);
+     font-size:.75rem;text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid var(--border);}
+  td{padding:.75rem 1rem;border-bottom:1px solid var(--border);vertical-align:top;max-width:320px;}
+  tr:last-child td{border-bottom:none;}
+  tr:hover td{background:var(--surface2);}
+  .badge{display:inline-block;padding:.2rem .6rem;border-radius:99px;font-size:.72rem;font-weight:600;}
+  .badge-blue{background:#1e3a5f;color:#60a5fa;}
+  .badge-green{background:#14532d;color:#4ade80;}
+  .badge-yellow{background:#422006;color:#fbbf24;}
+  .badge-red{background:#450a0a;color:#f87171;}
+  .badge-purple{background:#2e1065;color:#c084fc;}
+  .badge-gray{background:#1e293b;color:#94a3b8;}
+  .bar-wrap{background:var(--surface2);border-radius:99px;height:8px;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent2));}
+  .form-group{margin-bottom:1rem;}
+  label{display:block;font-size:.85rem;color:var(--muted);margin-bottom:.4rem;}
+  select,input,textarea{width:100%;background:var(--surface2);border:1px solid var(--border);
+    border-radius:8px;padding:.7rem 1rem;color:var(--text);font-size:.9rem;font-family:inherit;}
+  select:focus,input:focus,textarea:focus{outline:none;border-color:var(--accent);}
+  textarea{resize:vertical;min-height:80px;}
+  .btn{display:inline-flex;align-items:center;gap:.5rem;padding:.7rem 1.5rem;border-radius:8px;
+       font-size:.9rem;font-weight:600;cursor:pointer;border:none;transition:all .2s;}
+  .btn-primary{background:var(--accent);color:#fff;}
+  .btn-primary:hover{background:#3b7de8;}
+  .btn-success{background:var(--green);color:#fff;}
+  .rca-match{display:flex;align-items:flex-start;gap:1rem;padding:.9rem;border-radius:8px;
+             background:var(--surface);border:1px solid var(--border);margin-bottom:.75rem;}
+  .rca-rank{width:2rem;height:2rem;border-radius:50%;display:flex;align-items:center;
+            justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;}
+  .rank-1{background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;}
+  .rank-2{background:linear-gradient(135deg,#94a3b8,#64748b);color:#fff;}
+  .rank-3{background:linear-gradient(135deg,#b45309,#92400e);color:#fff;}
+  .rank-n{background:var(--surface2);color:var(--muted);}
+  .rca-match-content{flex:1;}
+  .rca-match-title{font-weight:600;margin-bottom:.25rem;}
+  .rca-match-detail{font-size:.82rem;color:var(--muted);line-height:1.5;}
+  .confidence{font-size:.78rem;color:var(--accent);}
+  .alert{padding:1rem 1.25rem;border-radius:8px;margin-bottom:1rem;font-size:.9rem;}
+  .alert-success{background:#14532d33;border:1px solid #22c55e55;color:#4ade80;}
+  .alert-error{background:#450a0a33;border:1px solid #ef444455;color:#f87171;}
+  .alert-info{background:#1e3a5f33;border:1px solid #4f8ef755;color:#93c5fd;}
+  .chart-wrap{position:relative;height:280px;}
+  .engine-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:.75rem;margin-bottom:1.5rem;}
+  .engine-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;
+               padding:1rem;cursor:pointer;transition:all .2s;text-align:center;}
+  .engine-card:hover,.engine-card.selected{border-color:var(--accent);background:var(--surface2);}
+  .engine-card .eng-name{font-size:1.1rem;font-weight:700;color:var(--accent);}
+  .engine-card .eng-type{font-size:.72rem;color:var(--muted);margin:.2rem 0;}
+  .timeline{position:relative;padding-left:2rem;}
+  .timeline::before{content:'';position:absolute;left:.5rem;top:0;bottom:0;width:2px;background:var(--border);}
+  .tl-item{position:relative;margin-bottom:1.25rem;}
+  .tl-dot{position:absolute;left:-1.75rem;top:.3rem;width:.75rem;height:.75rem;border-radius:50%;
+           background:var(--accent);border:2px solid var(--bg);}
+  .tl-date{font-size:.78rem;color:var(--muted);margin-bottom:.2rem;}
+  .tl-title{font-size:.9rem;font-weight:600;margin-bottom:.25rem;}
+  .tl-body{font-size:.82rem;color:var(--muted);line-height:1.5;}
+  .upload-area{border:2px dashed var(--border);border-radius:var(--radius);padding:2rem;text-align:center;}
+  .upload-area:hover{border-color:var(--accent);}
+  .section-title{font-size:.85rem;font-weight:700;color:var(--muted);text-transform:uppercase;
+                 letter-spacing:1px;margin-bottom:1rem;padding-bottom:.5rem;border-bottom:1px solid var(--border);}
+  .scroll-x{overflow-x:auto;}
+  .month-table th,.month-table td{min-width:55px;text-align:center;}
+  .month-table td:first-child{text-align:left;font-weight:600;}
+  .cell-hot{background:#f59e0b22;color:#f59e0b;font-weight:700;}
+  .cell-med{background:#4f8ef722;color:#60a5fa;}
+  .cell-zero{color:#334155;}
+  .tab-bar{display:flex;gap:.5rem;margin-bottom:1.5rem;border-bottom:1px solid var(--border);}
+  .tab{padding:.6rem 1.2rem;cursor:pointer;border-radius:8px 8px 0 0;font-size:.88rem;
+       color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px;}
+  .tab.active{color:var(--text);background:var(--surface);border-color:var(--accent);}
+  .tab-content{display:none;}
+  .tab-content.active{display:block;}
+  .flex{display:flex;gap:1rem;align-items:center;}
+  .mt-1{margin-top:.5rem;}.mt-2{margin-top:1rem;}.mt-3{margin-top:1.5rem;}
+  .text-muted{color:var(--muted);}
+  .text-accent{color:var(--accent);}
+  .text-green{color:var(--green);}
+</style>
+</head>
+<body>
+<nav>
+  <div class="logo">⚡ <span>Engine RCA</span></div>
+  <a href="/" class="{{ 'active' if page=='dashboard' else '' }}">📊 Dashboard</a>
+  <a href="/explorer" class="{{ 'active' if page=='explorer' else '' }}">🔍 Engine History</a>
+  <a href="/rca" class="{{ 'active' if page=='rca' else '' }}">🤖 Smart RCA</a>
+  <a href="/update" class="{{ 'active' if page=='update' else '' }}">➕ Add Data</a>
+</nav>
+{% block content %}{% endblock %}
+<script>
+function showTab(id, el) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  el.classList.add('active');
+}
+</script>
+</body>
+</html>

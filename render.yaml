@@ -1,0 +1,18 @@
+databases:
+  - name: tripack-rca-db
+    databaseName: tripack_rca
+    user: tripack
+    plan: free
+
+services:
+  - type: web
+    name: tripack-rca
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: tripack-rca-db
+          property: connectionString

@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+  <div class="page-header">
+    <h1>🔍 Engine History Explorer</h1>
+    <p>Select an engine to view its complete tripping history and root cause breakdown</p>
+  </div>
+
+  <div class="engine-grid">
+    {% for eng in all_engines %}
+    <div class="engine-card {{ 'selected' if eng.name==selected_engine else '' }}"
+         onclick="location.href='/explorer?engine={{ eng.name|urlencode }}'">
+      <div class="eng-name">{{ eng.name }}</div>
+      <div class="eng-type">{{ eng.type }}</div>
+      <div style="margin-top:.4rem;"><span class="badge badge-blue">{{ eng.trips }} trips</span></div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if selected_engine and records %}
+  <div class="grid-2">
+    <div class="panel">
+      <h3>Root Cause Breakdown — {{ selected_engine }}</h3>
+      {% if rca_breakdown %}
+        <div class="chart-wrap" style="height:220px;"><canvas id="engRcaPie"></canvas></div>
+        <div style="margin-top:1rem;">
+        {% for r in rca_breakdown %}
+        <div style="margin-bottom:.6rem;">
+          <div class="flex" style="margin-bottom:.3rem;">
+            <span style="font-size:.83rem;">{{ r.cat }}</span>
+            <span style="margin-left:auto;font-size:.83rem;font-weight:600;">{{ r.count }} ({{ r.pct }}%)</span>
+          </div>
+          <div class="bar-wrap"><div class="bar-fill" style="width:{{ r.pct }}%;"></div></div>
+        </div>
+        {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+    <div class="panel">
+      <h3>Engine Summary</h3>
+      <table>
+        <tr><td class="text-muted">Engine ID</td><td><strong>{{ selected_engine }}</strong></td></tr>
+        <tr><td class="text-muted">Model</td><td>{{ eng_type }}</td></tr>
+        <tr><td class="text-muted">Total Trips</td><td><span class="badge badge-blue">{{ records|length }}</span></td></tr>
+        <tr><td class="text-muted">First Recorded Trip</td><td>{{ first_date }}</td></tr>
+        <tr><td class="text-muted">Most Recent Trip</td><td>{{ last_date }}</td></tr>
+        <tr><td class="text-muted">Top Root Cause</td><td><span class="badge badge-yellow">{{ top_cause }}</span></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Complete Tripping History</h3>
+    <div class="tbl-wrap">
+      <table>
+        <tr><th>#</th><th>Date</th><th>Time</th><th>Root Cause</th><th>Details</th><th>Action Taken</th></tr>
+        {% for r in records %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ r.date }}</td>
+          <td>{{ r.time }}</td>
+          <td><span class="badge badge-yellow">{{ r.rca }}</span></td>
+          <td>{{ r.details[:200] }}{% if r.details|length > 200 %}…{% endif %}</td>
+          <td class="text-muted" style="font-size:.8rem;">{{ r.action[:120] }}{% if r.action|length > 120 %}…{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+
+  {% elif selected_engine %}
+  <div class="alert alert-info">No records found for {{ selected_engine }}.</div>
+  {% else %}
+  <div class="alert alert-info">👆 Click any engine card above to explore its tripping history.</div>
+  {% endif %}
+</div>
+
+{% if rca_breakdown %}
+<script>
+const COLORS=['#4f8ef7','#7c3aed','#22c55e','#f59e0b','#ef4444','#06b6d4','#ec4899','#a78bfa','#34d399'];
+new Chart(document.getElementById('engRcaPie'),{
+  type:'doughnut',
+  data:{labels:{{ rca_labels|tojson }},
+    datasets:[{data:{{ rca_vals|tojson }},backgroundColor:COLORS,borderColor:'#1a1d27',borderWidth:2}]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{position:'right',labels:{color:'#8892aa',font:{size:11},boxWidth:12}}}}
+});
+</script>
+{% endif %}
+{% endblock %}
